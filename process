@@ -1,0 +1,98 @@
+
+clear
+cd /root/FC24
+
+FQDN='https://www.ea.com/'
+shield='https://ratings-images-prod.pulse.ea.com/FC25/full/player-shields/en/'
+image='https://ratings-images-prod.pulse.ea.com/FC25/full/player-portraits/p'
+
+output=''
+
+data='/root/FC24/data'
+
+
+d=`cat "$data" | sed 's/<tr class="Table_row_/\n<tr class="Table_row_/gi' | sed 's/<\/tr>/<\/tr>\n/gi' | grep ^'<tr class="Table_row_' |sort|uniq`
+
+
+#head=`echo "$d" | grep '<th' |sed 's/<th/\n<th/gi' | sed 's/<\/button>/<\/button>\n/gi' | grep ^'<th' |rev |cut -d '<' -f2 |cut -d '>' -f1 |rev|sed 's/$/,/gi' |xargs |sed 's/,$//gi' |tr -d ' '`
+
+
+#output="$output$head\n"
+
+
+
+output='Sl,rank,name,id,bio,nation,nation flag,club,club flag,ovr,pac,sho,pas,dri,def,phy,shield,Error,Verify'
+
+output=${output^^}
+
+
+
+d=`cat "$data" | sed 's/<tr class="Table_row_/\n<tr class="Table_row_/gi' | sed 's/<\/tr>/<\/tr>\n/gi' | grep ^'<tr class="Table_row_' | grep -v '<th' |sort|uniq`
+
+max=`echo "$d" |wc -l`
+
+echo "TOTAL: $max"
+
+echo "$output" |tee '/root/FC24/output'
+
+
+for r in $(seq $max)
+do
+	error='NULL'
+
+	row=`echo "$d" |sed -n "$r"' p'|sed 's/<td/\n<td/gi'`
+
+	rank=`echo "$row" | grep 'data-type="rank"' |sed 's/<div/\n<div/gi' | grep 'Table_rankCell' |sed 's/>/\n/gi' |grep ^[0-9] |cut -d '<' -f1 |xargs`
+
+	verify=`echo "$row" | grep 'Table_profileSupLabel_' | sed 's/<div/\n<div/gi' | grep 'Table_profileSupLabel_' | xargs |sed 's/div>/div>\n/gi' |grep 'Table_profileSupLabel' |cut -d '#' -f2 | cut -d '<' -f1|xargs`
+
+	name=`echo "$row" |grep 'data-type="profile"' | grep 'Table_profileSupLabel_' | sed 's/<div/\n<div/gi' | grep 'Table_profileSupLabel_' | xargs |sed 's/div>/div>\n/gi' | grep -v ^'<' |cut -d '<' -f1 |xargs`
+
+	bio="$FQDN"`echo "$row" | grep 'Table_profileCellAnchor_' | grep '<a' |sed 's/<a/\n<a/gi' |sed 's/" /"\n/gi' | grep 'href' |cut -d '>' -f1|xargs|cut -d '=' -f2 |xargs`
+
+	id=`echo "$bio" |rev |cut -d'/' -f 1 |rev`
+
+#	nation=`echo "$row" | grep 'data-type="nationality"'| sed 's/<img/\n<img/gi' |grep ^'<img' |sed 's/" /"\n/gi' | grep -iE ^"src|alt" |cut -d '=' -f2 |xargs |sed 's/ http/,http/gi'|xargs`
+
+	pos=`echo "$row" | grep 'data-type="profile"' | grep -v 'Table_profileSupLabel_' |sed 's/>/>\n/gi' |grep -v ^'<' |cut -d '<' -f 1|xargs`
+
+	nation=`echo "$row" | grep 'Table_centerCell__RWh19 Table_anchorCell__BVZny'| sed 's/<img/\n<img/gi' |grep ^'<img' |sed 's/" /"\n/gi' | grep -iE ^"src|alt" |cut -d '=' -f2 |xargs |sed 's/ http/,http/gi'|xargs |sed 's/png /png,/gi'`
+
+	ovr=`echo "$row" | grep 'data-label="OVR"' |sort |uniq| sed 's/>/>\n/gi' | grep -v ^'<' | sort |uniq | grep ^[0-9]|cut -d '<' -f 1|xargs`
+
+	pac=`echo "$row" | grep 'data-label="PAC"' |sed 's/>/>\n/gi' | grep -v ^'<' | grep ^[0-9]|cut -d '<' -f 1|xargs |cut -d ' ' -f1 |xargs`
+
+	sho=`echo "$row" | grep 'data-label="SHO"'|sed 's/>/>\n/gi' | grep -v ^'<' | grep ^[0-9]|cut -d '<' -f 1|xargs |cut -d ' ' -f1 |xargs`
+
+	pas=`echo "$row" | grep 'data-label="PAS"'|sed 's/>/>\n/gi' | grep -v ^'<' | grep ^[0-9]|cut -d '<' -f 1|xargs |cut -d ' ' -f1 |xargs`
+
+	dri=`echo "$row" | grep 'data-label="DRI"'|sed 's/>/>\n/gi' | grep -v ^'<' | grep ^[0-9]|cut -d '<' -f 1|xargs |cut -d ' ' -f1 |xargs`
+
+	def=`echo "$row" | grep 'data-label="DEF"'|sed 's/>/>\n/gi' | grep -v ^'<' | grep ^[0-9]|cut -d '<' -f 1|xargs |cut -d ' ' -f1 |xargs`
+
+	phy=`echo "$row" | grep 'data-label="PHY"'|sed 's/>/>\n/gi' | grep -v ^'<' | grep ^[0-9]|cut -d '<' -f 1|xargs |cut -d ' ' -f1 |xargs`
+
+
+
+
+		
+	if [ $rank -ne $verify ]
+	then
+		error='ERR'
+		echo "$rank $verify"
+
+		break
+	fi
+
+	echo
+
+	#echo "==================================================================="
+	echo "$r,$rank,$name,$id,$bio,$nation,$ovr,$pac,$sho,$pas,$dri,$def,$phy,$shield$id"'.png'",$image$id"'.png,'"$error,$verify" |tee -a '/root/FC24/output'
+	#echo "==================================================================="
+	
+	#read enter
+done
+
+
+
+
